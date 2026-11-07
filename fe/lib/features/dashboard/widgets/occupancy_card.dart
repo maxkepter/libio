@@ -25,14 +25,13 @@ class OccupancyCard extends StatelessWidget {
       return const AppCard(
         child: SizedBox(
           height: 140,
-          child: Center(
-            child: CircularProgressIndicator(),
-          ),
+          child: Center(child: CircularProgressIndicator()),
         ),
       );
     }
 
-    final data = occupancy ??
+    final data =
+        occupancy ??
         OccupancyModel(
           currentOccupants: 0,
           maxCapacity: 500,
@@ -42,8 +41,9 @@ class OccupancyCard extends StatelessWidget {
         );
 
     final rateClamped = (data.occupancyRate / 100.0).clamp(0.0, 1.0);
-    final formattedTime =
-        DateFormat('HH:mm:ss dd/MM/yyyy').format(data.updatedAt.toLocal());
+    final formattedTime = DateFormat(
+      'HH:mm:ss dd/MM/yyyy',
+    ).format(data.updatedAt.toLocal());
 
     return AppCard(
       child: Column(
@@ -52,39 +52,47 @@ class OccupancyCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: data.status.lightColor,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.groups_rounded,
-                      color: data.status.color,
-                      size: 22,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.s3),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Sức chứa hiện tại',
-                        style: AppTextStyles.h3.copyWith(
-                          color: AppColors.charcoal900,
-                        ),
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: data.status.lightColor,
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      Text(
-                        'Số lượng người đang có mặt trong thư viện',
-                        style: AppTextStyles.caption.copyWith(
-                          color: AppColors.charcoal500,
-                        ),
+                      child: Icon(
+                        Icons.groups_rounded,
+                        color: data.status.color,
+                        size: 22,
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+                    const SizedBox(width: AppSpacing.s3),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Sức chứa hiện tại',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.h3.copyWith(
+                              color: AppColors.charcoal900,
+                            ),
+                          ),
+                          Text(
+                            'Số lượng người đang có mặt trong thư viện',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.charcoal500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
               StatusBadge(
                 label: data.statusLabel,
@@ -93,8 +101,8 @@ class OccupancyCard extends StatelessWidget {
                 icon: data.isNormal
                     ? Icons.check_circle_outline
                     : (data.isWarning
-                        ? Icons.warning_amber_rounded
-                        : Icons.error_outline_rounded),
+                          ? Icons.warning_amber_rounded
+                          : Icons.error_outline_rounded),
               ),
             ],
           ),
@@ -160,7 +168,10 @@ class OccupancyCard extends StatelessWidget {
                 label: const Text('Làm mới'),
                 style: TextButton.styleFrom(
                   foregroundColor: AppColors.charcoal700,
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   visualDensity: VisualDensity.compact,
                 ),
               ),

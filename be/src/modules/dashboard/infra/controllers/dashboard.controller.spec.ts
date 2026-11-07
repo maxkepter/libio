@@ -25,6 +25,7 @@ jest.mock('../../../auth/infra/guard/role.guard', () => ({
 
 import { DashboardController } from './dashboard.controller';
 import { DashboardService } from '../../application/services/dashboard.service';
+import { DashboardStreamService } from '../../application/services/dashboard-stream.service';
 import { CapacityStatus } from '../../domain/enums/capacity-status.enum';
 import {
   OccupancyDashboardRes,
@@ -41,7 +42,10 @@ describe('DashboardController (infra)', () => {
       getCheckInOutStatistic: jest.fn(),
     } as unknown as jest.Mocked<DashboardService>;
 
-    controller = new DashboardController(service);
+    controller = new DashboardController(
+      service,
+      { getReaderAccessEvents: jest.fn() } as unknown as DashboardStreamService,
+    );
   });
 
   describe('getOccupancy', () => {

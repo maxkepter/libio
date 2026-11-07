@@ -7,17 +7,22 @@ import 'package:http/http.dart' as http;
 import '../constants/api_constants.dart';
 import 'api_exception.dart';
 
+class ApiSseEvent {
+  final String data;
+  final String? event;
+  final String? id;
+
+  const ApiSseEvent({required this.data, this.event, this.id});
+}
+
 class ApiClient {
   final http.Client _client;
   final String baseUrl;
   Future<String?> Function()? getAccessToken;
 
-  ApiClient({
-    http.Client? client,
-    String? baseUrl,
-    this.getAccessToken,
-  }) : _client = client ?? http.Client(),
-        baseUrl = baseUrl ?? ApiConstants.baseUrl;
+  ApiClient({http.Client? client, String? baseUrl, this.getAccessToken})
+    : _client = client ?? http.Client(),
+      baseUrl = baseUrl ?? ApiConstants.baseUrl;
 
   Map<String, String> _defaultHeaders([String? token]) => {
     'Content-Type': 'application/json',
@@ -25,12 +30,20 @@ class ApiClient {
     if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
   };
 
-  Uri _uri(String path) {
+  Uri _uri(String path, [Map<String, dynamic>? query]) {
     final cleanBase = baseUrl.endsWith('/')
         ? baseUrl.substring(0, baseUrl.length - 1)
         : baseUrl;
     final cleanPath = path.startsWith('/') ? path : '/$path';
-    return Uri.parse('$cleanBase$cleanPath');
+    final uri = Uri.parse('$cleanBase$cleanPath');
+    return (query == null || query.isEmpty)
+        ? uri
+        : uri.replace(
+            queryParameters: {
+              ...uri.queryParameters,
+              ...query.map((k, v) => MapEntry(k, v?.toString() ?? '')),
+            },
+          );
   }
 
   Future<dynamic> post(
@@ -64,6 +77,49 @@ class ApiClient {
     }
   }
 
+  Stream<ApiSseEvent> getSse(
+    String path, {
+    Map<String, dynamic>? query,
+    bool requiresAuth = false,
+  }) async* {
+    final token = requiresAuth && getAccessToken != null ? await getAccessToken!() : null;
+    final request = http.Request('GET', _uri(path, query))
+      ..headers.addAll({
+        'Accept': 'text/event-stream',
+        if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+      });
+
+    final response = await _client.send(request);
+    if (response.statusCode >= 400) {
+      throw ApiException.fromStatus(response.statusCode, null);
+    }
+
+    String? event, id;
+    final buffer = StringBuffer();
+
+    yield* response.stream
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .expand((line) {
+          if (line.isEmpty) {
+            if (buffer.isEmpty) return const <ApiSseEvent>[];
+            final e = ApiSseEvent(data: buffer.toString(), event: event, id: id);
+            buffer.clear();
+            event = id = null;
+            return [e];
+          }
+          if (line.startsWith('data:')) {
+            if (buffer.isNotEmpty) buffer.write('\n');
+            buffer.write(line.substring(5).trimLeft());
+          } else if (line.startsWith('event:')) {
+            event = line.substring(6).trim();
+          } else if (line.startsWith('id:')) {
+            id = line.substring(3).trim();
+          }
+          return const <ApiSseEvent>[];
+        });
+  }
+
   Future<dynamic> get(
     String path, {
     Map<String, dynamic>? query,
@@ -74,20 +130,9 @@ class ApiClient {
       token = await getAccessToken!();
     }
 
-    final uri = query == null || query.isEmpty
-        ? _uri(path)
-        : _uri(path).replace(
-            queryParameters: {
-              ..._uri(path).queryParameters,
-              ...query.map(
-                (k, v) => MapEntry(k, v == null ? '' : v.toString()),
-              ),
-            },
-          );
-
     try {
       final response = await _client
-          .get(uri, headers: _defaultHeaders(token))
+          .get(_uri(path, query), headers: _defaultHeaders(token))
           .timeout(ApiConstants.timeout);
       return _handleResponse(response);
     } on SocketException {
