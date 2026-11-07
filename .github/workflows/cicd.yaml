@@ -87,6 +87,17 @@ jobs:
       - name: Run unit tests
         run: flutter test
 
+      - name: Build Android APK
+        run: flutter build apk --release
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-apk-${{ github.sha }}
+          path: fe/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
+
   docker-build:
     name: Docker Build Check
     runs-on: ubuntu-latest
@@ -151,4 +162,46 @@ jobs:
             printf "%s\n" "$BE_ENV" > be/.env
             printf "%s\n" "$PYTHON_ENV" > python/.env
             docker compose up -d --build be python-face
+
+            echo "Waiting for services to start up..."
+            sleep 10
+
+            echo "=== Checking libio-python-face status ==="
+            if [ "$(docker inspect -f '{{.State.Running}}' libio-python-face 2>/dev/null)" != "true" ]; then
+              echo "❌ libio-python-face failed to start!"
+              docker logs --tail 50 libio-python-face
+              exit 1
+            fi
+            echo "✅ libio-python-face is running"
+
+            echo "=== Checking libio-backend status ==="
+            if [ "$(docker inspect -f '{{.State.Running}}' libio-backend 2>/dev/null)" != "true" ]; then
+              echo "❌ libio-backend failed to start!"
+              docker logs --tail 50 libio-backend
+              exit 1
+            fi
+            echo "✅ libio-backend container is running"
+
+            echo "=== Checking Backend HTTP health ==="
+            PORT=$(grep -E '^PORT=' be/.env | cut -d '=' -f2 | tr -d '\r"' || echo "8020")
+            PORT=${PORT:-8020}
+            HEALTHY=false
+            for i in {1..10}; do
+              if curl -s -f "http://127.0.0.1:${PORT}/" > /dev/null 2>&1; then
+                HEALTHY=true
+                echo "✅ Backend is healthy and responding on port ${PORT}"
+                break
+              fi
+              echo "Waiting for backend response... ($i/10)"
+              sleep 2
+            done
+
+            if [ "$HEALTHY" = false ]; then
+              echo "❌ Backend HTTP healthcheck failed on port ${PORT}!"
+              docker logs --tail 50 libio-backend
+              exit 1
+            fi
+
+            echo "=== Deployment Status ==="
+            docker compose ps be python-face
             docker image prune -f

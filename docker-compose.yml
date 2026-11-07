@@ -30,9 +30,9 @@ services:
     ports:
       - "${GRPC_PORT:-50051}:50051"
     env_file:
-      - path: ./python/.env
-        required: false
       - path: ./python/.env.example
+        required: false
+      - path: ./python/.env
         required: false
 
   be:
@@ -44,9 +44,9 @@ services:
     ports:
       - "${PORT:-8020}:${PORT:-8020}"
     env_file:
-      - path: ./be/.env
-        required: false
       - path: ./be/.env.example
+        required: false
+      - path: ./be/.env
         required: false
     environment:
       PYTHON_GRPC_URL: python-face:50051

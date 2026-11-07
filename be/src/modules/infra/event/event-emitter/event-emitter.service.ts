@@ -9,6 +9,6 @@ export class EventEmitterService implements InternalEventBus {
   constructor(private readonly eventEmitter: EventEmitter2) {}
 
   async publish(event: DomainEvent): Promise<void> {
-    await this.eventEmitter.emitAsync(event.getEventName(), event.serialize());
+    await this.eventEmitter.emitAsync(event.getEventName(), event);
   }
 }

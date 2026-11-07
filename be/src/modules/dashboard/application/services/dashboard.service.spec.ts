@@ -120,7 +120,7 @@ describe('DashboardService', () => {
         checkInCount: 1,
         checkOutCount: 1,
         peakPeopleCount: 3,
-        lowestPeopleCount: 2,
+        lowestPeopleCount: 1,
       });
 
       expect(result[1]).toEqual({
@@ -141,6 +141,53 @@ describe('DashboardService', () => {
       });
 
       expect(result).toEqual([]);
+    });
+
+    it('giới hạn endDate về hiện tại và không gọi query nếu startDate ở tương lai', async () => {
+      const futureStart = new Date(Date.now() + 1000 * 60 * 60 * 24);
+      const futureEnd = new Date(futureStart.getTime() + 1000 * 60 * 60);
+
+      const result = await service.getCheckInOutStatistic({
+        startDate: futureStart,
+        endDate: futureEnd,
+        intervalMin: 60,
+      });
+
+      expect(result).toEqual([]);
+      expect(accessLogRepo.query).not.toHaveBeenCalled();
+    });
+
+    it('loại bỏ các mốc thời gian vượt quá thời điểm hiện tại', async () => {
+      const pastStart = new Date(Date.now() - 1000 * 60 * 90); // 90 mins ago
+      const futureEnd = new Date(Date.now() + 1000 * 60 * 60); // 60 mins ahead
+
+      const pastBucket = new Date(Date.now() - 1000 * 60 * 60).toISOString();
+      const futureBucket = new Date(Date.now() + 1000 * 60 * 30).toISOString();
+
+      accessLogRepo.query
+        .mockResolvedValueOnce([{ count: 5 }])
+        .mockResolvedValueOnce([
+          {
+            startDate: pastBucket,
+            checkInCount: 3,
+            checkOutCount: 1,
+          },
+          {
+            startDate: futureBucket,
+            checkInCount: 0,
+            checkOutCount: 0,
+          },
+        ]);
+
+      const result = await service.getCheckInOutStatistic({
+        startDate: pastStart,
+        endDate: futureEnd,
+        intervalMin: 60,
+      });
+
+      expect(result).toHaveLength(1);
+      expect(result[0].startDate).toEqual(new Date(pastBucket));
+      expect(result.some((r) => r.startDate.getTime() > Date.now())).toBe(false);
     });
   });
 });

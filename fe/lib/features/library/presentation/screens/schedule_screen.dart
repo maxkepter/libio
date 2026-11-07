@@ -23,7 +23,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     super.didChangeDependencies();
     if (!_initialized) {
       _initialized = true;
-      context.read<ScheduleProvider>().loadAll();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<ScheduleProvider>().loadAll();
+      });
     }
   }
 

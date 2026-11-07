@@ -239,20 +239,23 @@ class _LibraryClosureScreenState extends State<LibraryClosureScreen> {
                                   prefixIcon: Icons.event_busy_rounded,
                                 ),
                                 const SizedBox(height: AppSpacing.s2),
-                                CheckboxListTile(
-                                  contentPadding: EdgeInsets.zero,
-                                  value: _markTodayClosed,
-                                  onChanged: (v) {
-                                    setState(() {
-                                      _markTodayClosed = v ?? false;
-                                    });
-                                  },
-                                  title: Text(
-                                    'Đánh dấu đóng cửa ngày hôm nay trên Lịch đặc biệt (Chặn check-in mới)',
-                                    style: AppTextStyles.bodySm,
+                                Material(
+                                  color: Colors.transparent,
+                                  child: CheckboxListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    value: _markTodayClosed,
+                                    onChanged: (v) {
+                                      setState(() {
+                                        _markTodayClosed = v ?? false;
+                                      });
+                                    },
+                                    title: Text(
+                                      'Đánh dấu đóng cửa ngày hôm nay trên Lịch đặc biệt (Chặn check-in mới)',
+                                      style: AppTextStyles.bodySm,
+                                    ),
+                                    controlAffinity:
+                                        ListTileControlAffinity.leading,
                                   ),
-                                  controlAffinity:
-                                      ListTileControlAffinity.leading,
                                 ),
                                 if (_errorMsg != null) ...[
                                   const SizedBox(height: 8),

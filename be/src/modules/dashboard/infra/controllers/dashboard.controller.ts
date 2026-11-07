@@ -4,6 +4,7 @@ import {
   HttpCode,
   HttpStatus,
   Query,
+  Sse,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -22,6 +23,8 @@ import {
   CheckInOutDashboardRes,
   OccupancyDashboardRes,
 } from '../../dto/res.dto';
+import { DashboardStreamService } from '../../application/services/dashboard-stream.service';
+import { Observable } from 'rxjs';
 
 @ApiTags('Dashboard')
 @ApiBearerAuth('access-token')
@@ -29,7 +32,10 @@ import {
 @Roles(Role.ADMIN, Role.STAFF)
 @Controller('dashboard')
 export class DashboardController {
-  constructor(private readonly dashboardService: DashboardService) {}
+  constructor(
+    private readonly dashboardService: DashboardService,
+    private readonly dashboardStreamServide: DashboardStreamService,
+  ) {}
 
   @Get('occupancy')
   @HttpCode(HttpStatus.OK)
@@ -59,5 +65,10 @@ export class DashboardController {
     @Query() query: CheckInOutDashboardReq,
   ): Promise<CheckInOutDashboardRes[]> {
     return this.dashboardService.getCheckInOutStatistic(query);
+  }
+
+  @Sse('check-in-out/events')
+  getCheckInOutEvents(): Observable<MessageEvent> {
+    return this.dashboardStreamServide.getReaderAccessEvents();
   }
 }

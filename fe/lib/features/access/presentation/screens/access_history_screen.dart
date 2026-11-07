@@ -31,10 +31,50 @@ class _AccessHistoryScreenState extends State<AccessHistoryScreen> {
 
   String _selectedAction = '';
   String _selectedMethod = '';
+  DateTime _selectedDate = DateTime.now();
   int _page = 1;
   int _total = 0;
   int _totalPages = 1;
   List<Map<String, dynamic>> _logs = [];
+
+  bool get _isToday {
+    final now = DateTime.now();
+    return _selectedDate.year == now.year &&
+        _selectedDate.month == now.month &&
+        _selectedDate.day == now.day;
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate.isAfter(now) ? now : _selectedDate,
+      firstDate: DateTime(2024, 1, 1),
+      lastDate: now,
+      helpText: 'Chọn ngày xem lịch sử ra/vào',
+      cancelText: 'Hủy',
+      confirmText: 'Chọn ngày',
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedDate = picked;
+      });
+      _loadLogs(page: 1);
+    }
+  }
+
+  void _shiftDay(int deltaDays) {
+    final target = _selectedDate.add(Duration(days: deltaDays));
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    if (DateTime(target.year, target.month, target.day).isAfter(today)) {
+      return;
+    }
+    setState(() {
+      _selectedDate = target;
+    });
+    _loadLogs(page: 1);
+  }
 
   @override
   void didChangeDependencies() {
@@ -58,6 +98,24 @@ class _AccessHistoryScreenState extends State<AccessHistoryScreen> {
       _errorMsg = null;
     });
 
+    final startOfDay = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      0,
+      0,
+      0,
+    );
+    final endOfDay = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      23,
+      59,
+      59,
+      999,
+    );
+
     try {
       final res = await _accessService.getAccessLogs(
         page: page,
@@ -65,6 +123,8 @@ class _AccessHistoryScreenState extends State<AccessHistoryScreen> {
         action: _selectedAction.isEmpty ? null : _selectedAction,
         method: _selectedMethod.isEmpty ? null : _selectedMethod,
         search: _searchCtrl.text.trim(),
+        from: startOfDay.toUtc().toIso8601String(),
+        to: endOfDay.toUtc().toIso8601String(),
       );
 
       if (!mounted) return;
@@ -124,6 +184,93 @@ class _AccessHistoryScreenState extends State<AccessHistoryScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        // Thanh chọn ngày (Calendar filter)
+                        AppCard(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            alignment: WrapAlignment.spaceBetween,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    visualDensity: VisualDensity.compact,
+                                    tooltip: 'Ngày trước',
+                                    onPressed: _loading
+                                        ? null
+                                        : () => _shiftDay(-1),
+                                    icon: const Icon(
+                                      Icons.chevron_left_rounded,
+                                    ),
+                                  ),
+                                  OutlinedButton.icon(
+                                    onPressed: _loading ? null : _pickDate,
+                                    icon: const Icon(
+                                      Icons.calendar_month_rounded,
+                                      size: 18,
+                                      color: AppColors.accent600,
+                                    ),
+                                    label: Text(
+                                      '${DateFormat('dd/MM/yyyy').format(_selectedDate)}${_isToday ? ' (Hôm nay)' : ''}',
+                                      style: AppTextStyles.body.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.charcoal900,
+                                      ),
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      side: const BorderSide(
+                                        color: AppColors.neutral300,
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    visualDensity: VisualDensity.compact,
+                                    tooltip: 'Ngày tiếp theo',
+                                    onPressed: _loading || _isToday
+                                        ? null
+                                        : () => _shiftDay(1),
+                                    icon: const Icon(
+                                      Icons.chevron_right_rounded,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (!_isToday)
+                                    TextButton(
+                                      onPressed: _loading
+                                          ? null
+                                          : () {
+                                              setState(() {
+                                                _selectedDate = DateTime.now();
+                                              });
+                                              _loadLogs(page: 1);
+                                            },
+                                      child: const Text('Về hôm nay'),
+                                    ),
+                                  StatusBadge(
+                                    label: 'Tổng: $_total lượt',
+                                    color: AppColors.info,
+                                    backgroundColor: AppColors.infoLight,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
                         AppTextField(
                           controller: _searchCtrl,
                           hintText: 'Tìm theo tên bạn đọc, email, hoặc lý do...',
@@ -139,85 +286,72 @@ class _AccessHistoryScreenState extends State<AccessHistoryScreen> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              _filterChip(
-                                label: 'Tất cả hành động',
-                                selected: _selectedAction.isEmpty,
-                                onTap: () {
-                                  setState(() => _selectedAction = '');
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _dropdownFilter(
+                                value: _selectedAction,
+                                options: const [
+                                  _FilterOption(
+                                    value: '',
+                                    label: 'Mọi hành động',
+                                    icon: Icons.swap_vert_rounded,
+                                  ),
+                                  _FilterOption(
+                                    value: 'CHECK_IN',
+                                    label: 'Check-in (Vào)',
+                                    icon: Icons.login_rounded,
+                                  ),
+                                  _FilterOption(
+                                    value: 'CHECK_OUT',
+                                    label: 'Check-out (Ra)',
+                                    icon: Icons.logout_rounded,
+                                  ),
+                                  _FilterOption(
+                                    value: 'AUTO_CHECK_OUT',
+                                    label: 'Auto Check-out',
+                                    icon: Icons.timer_off_outlined,
+                                  ),
+                                ],
+                                onChanged: (val) {
+                                  setState(() => _selectedAction = val);
                                   _loadLogs(page: 1);
                                 },
                               ),
-                              const SizedBox(width: 6),
-                              _filterChip(
-                                label: 'Check-in',
-                                selected: _selectedAction == 'CHECK_IN',
-                                onTap: () {
-                                  setState(() => _selectedAction = 'CHECK_IN');
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _dropdownFilter(
+                                value: _selectedMethod,
+                                options: const [
+                                  _FilterOption(
+                                    value: '',
+                                    label: 'Mọi phương thức',
+                                    icon: Icons.tune_rounded,
+                                  ),
+                                  _FilterOption(
+                                    value: 'QR',
+                                    label: 'Mã QR',
+                                    icon: Icons.qr_code_scanner_rounded,
+                                  ),
+                                  _FilterOption(
+                                    value: 'FACE',
+                                    label: 'Khuôn mặt',
+                                    icon: Icons.face_retouching_natural,
+                                  ),
+                                  _FilterOption(
+                                    value: 'MANUAL',
+                                    label: 'Duyệt thủ công',
+                                    icon: Icons.how_to_reg_rounded,
+                                  ),
+                                ],
+                                onChanged: (val) {
+                                  setState(() => _selectedMethod = val);
                                   _loadLogs(page: 1);
                                 },
                               ),
-                              const SizedBox(width: 6),
-                              _filterChip(
-                                label: 'Check-out',
-                                selected: _selectedAction == 'CHECK_OUT',
-                                onTap: () {
-                                  setState(() => _selectedAction = 'CHECK_OUT');
-                                  _loadLogs(page: 1);
-                                },
-                              ),
-                              const SizedBox(width: 6),
-                              _filterChip(
-                                label: 'Auto Check-out',
-                                selected: _selectedAction == 'AUTO_CHECK_OUT',
-                                onTap: () {
-                                  setState(
-                                    () => _selectedAction = 'AUTO_CHECK_OUT',
-                                  );
-                                  _loadLogs(page: 1);
-                                },
-                              ),
-                              const SizedBox(width: 16),
-                              _filterChip(
-                                label: 'Mọi phương thức',
-                                selected: _selectedMethod.isEmpty,
-                                onTap: () {
-                                  setState(() => _selectedMethod = '');
-                                  _loadLogs(page: 1);
-                                },
-                              ),
-                              const SizedBox(width: 6),
-                              _filterChip(
-                                label: 'QR',
-                                selected: _selectedMethod == 'QR',
-                                onTap: () {
-                                  setState(() => _selectedMethod = 'QR');
-                                  _loadLogs(page: 1);
-                                },
-                              ),
-                              const SizedBox(width: 6),
-                              _filterChip(
-                                label: 'FACE',
-                                selected: _selectedMethod == 'FACE',
-                                onTap: () {
-                                  setState(() => _selectedMethod = 'FACE');
-                                  _loadLogs(page: 1);
-                                },
-                              ),
-                              const SizedBox(width: 6),
-                              _filterChip(
-                                label: 'MANUAL',
-                                selected: _selectedMethod == 'MANUAL',
-                                onTap: () {
-                                  setState(() => _selectedMethod = 'MANUAL');
-                                  _loadLogs(page: 1);
-                                },
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -237,7 +371,7 @@ class _AccessHistoryScreenState extends State<AccessHistoryScreen> {
                         : _logs.isEmpty
                         ? Center(
                             child: Text(
-                              'Chưa có bản ghi lịch sử ra/vào nào.',
+                              'Không có lượt ra/vào nào trong ngày ${DateFormat('dd/MM/yyyy').format(_selectedDate)}.',
                               style: AppTextStyles.body.copyWith(
                                 color: AppColors.charcoal500,
                               ),
@@ -288,16 +422,100 @@ class _AccessHistoryScreenState extends State<AccessHistoryScreen> {
     );
   }
 
-  Widget _filterChip({
-    required String label,
-    required bool selected,
-    required VoidCallback onTap,
+  Widget _dropdownFilter({
+    required String value,
+    required List<_FilterOption> options,
+    required ValueChanged<String> onChanged,
   }) {
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      selectedColor: AppColors.accent100,
-      onSelected: (_) => onTap(),
+    final current = options.firstWhere(
+      (o) => o.value == value,
+      orElse: () => options.first,
+    );
+
+    return PopupMenuButton<String>(
+      initialValue: value,
+      position: PopupMenuPosition.under,
+      offset: const Offset(0, 4),
+      color: AppColors.white,
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: const BorderSide(color: AppColors.neutral200),
+      ),
+      onSelected: onChanged,
+      itemBuilder: (context) => options.map((opt) {
+        final isSelected = opt.value == value;
+        return PopupMenuItem<String>(
+          value: opt.value,
+          height: 40,
+          child: Row(
+            children: [
+              Icon(
+                opt.icon,
+                size: 18,
+                color: isSelected ? AppColors.accent600 : AppColors.charcoal500,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  opt.label,
+                  style: AppTextStyles.bodySm.copyWith(
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    color: isSelected
+                        ? AppColors.accent600
+                        : AppColors.charcoal900,
+                  ),
+                ),
+              ),
+              if (isSelected)
+                const Icon(
+                  Icons.check_rounded,
+                  size: 16,
+                  color: AppColors.accent600,
+                ),
+            ],
+          ),
+        );
+      }).toList(),
+      child: Container(
+        height: 40,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: value.isNotEmpty ? AppColors.accent100 : AppColors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: value.isNotEmpty ? AppColors.accent500 : AppColors.neutral300,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              current.icon,
+              size: 16,
+              color: value.isNotEmpty
+                  ? AppColors.accent600
+                  : AppColors.charcoal500,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                current.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.bodySm.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.charcoal900,
+                ),
+              ),
+            ),
+            const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 18,
+              color: AppColors.charcoal600,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -415,4 +633,16 @@ class _AccessHistoryScreenState extends State<AccessHistoryScreen> {
       ),
     );
   }
+}
+
+class _FilterOption {
+  final String value;
+  final String label;
+  final IconData icon;
+
+  const _FilterOption({
+    required this.value,
+    required this.label,
+    required this.icon,
+  });
 }

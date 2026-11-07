@@ -53,7 +53,10 @@ class _ManualAccessScreenState extends State<ManualAccessScreen> {
     if (!_initialized) {
       _initialized = true;
       _accessService = AccessApiService(context.read<ApiClient>());
-      context.read<UserProvider>().loadReaders(page: 1);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<UserProvider>().loadReaders(page: 1);
+      });
       if (widget.initialReaderId != null &&
           widget.initialReaderId!.isNotEmpty) {
         _loadReaderStateById(widget.initialReaderId!);
@@ -68,12 +71,16 @@ class _ManualAccessScreenState extends State<ManualAccessScreen> {
     super.dispose();
   }
 
-  Future<void> _loadReaderStateById(String readerId, {ReaderRes? reader}) async {
+  Future<void> _loadReaderStateById(
+    String readerId, {
+    ReaderRes? reader,
+    bool keepLastResult = false,
+  }) async {
     setState(() {
       if (reader != null) _selectedReader = reader;
       _loadingState = true;
       _errorMsg = null;
-      _lastResult = null;
+      if (!keepLastResult) _lastResult = null;
     });
 
     try {
@@ -150,7 +157,11 @@ class _ManualAccessScreenState extends State<ManualAccessScreen> {
         ),
       );
 
-      await _loadReaderStateById(readerId, reader: _selectedReader);
+      await _loadReaderStateById(
+        readerId,
+        reader: _selectedReader,
+        keepLastResult: true,
+      );
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -242,9 +253,13 @@ class _ManualAccessScreenState extends State<ManualAccessScreen> {
                               ),
                             )
                           else
-                            ConstrainedBox(
-                              constraints: const BoxConstraints(maxHeight: 220),
-                              child: ListView.separated(
+                            Material(
+                              color: Colors.transparent,
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxHeight: 220,
+                                ),
+                                child: ListView.separated(
                                 shrinkWrap: true,
                                 itemCount: readers.length,
                                 separatorBuilder: (_, __) =>
@@ -306,6 +321,7 @@ class _ManualAccessScreenState extends State<ManualAccessScreen> {
                                 },
                               ),
                             ),
+                          ),
                         ],
                       ),
                     ),

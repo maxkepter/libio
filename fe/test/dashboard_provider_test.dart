@@ -9,6 +9,8 @@ class MockDashboardApiService extends DashboardApiService {
   final OccupancyModel? mockOccupancy;
   final List<CheckInOutStatisticModel>? mockStats;
   final bool shouldThrow;
+  DateTime? lastStartDate;
+  DateTime? lastEndDate;
 
   MockDashboardApiService({
     this.mockOccupancy,
@@ -25,7 +27,7 @@ class MockDashboardApiService extends DashboardApiService {
           "maxCapacity": 500,
           "occupancyRate": 25.0,
           "status": "NORMAL",
-          "updatedAt": "2026-10-27T10:00:00.000Z"
+          "updatedAt": "2026-10-27T10:00:00.000Z",
         });
   }
 
@@ -35,6 +37,8 @@ class MockDashboardApiService extends DashboardApiService {
     required DateTime endDate,
     int intervalMin = 60,
   }) async {
+    lastStartDate = startDate;
+    lastEndDate = endDate;
     if (shouldThrow) throw Exception('Lỗi kết nối máy chủ');
     return mockStats ??
         [
@@ -44,7 +48,7 @@ class MockDashboardApiService extends DashboardApiService {
             "checkInCount": 15,
             "checkOutCount": 2,
             "peakPeopleCount": 15,
-            "lowestPeopleCount": 0
+            "lowestPeopleCount": 0,
           }),
           CheckInOutStatisticModel.fromJson(const {
             "startDate": "2026-10-27T08:00:00.000Z",
@@ -52,7 +56,7 @@ class MockDashboardApiService extends DashboardApiService {
             "checkInCount": 45,
             "checkOutCount": 8,
             "peakPeopleCount": 52,
-            "lowestPeopleCount": 13
+            "lowestPeopleCount": 13,
           }),
           CheckInOutStatisticModel.fromJson(const {
             "startDate": "2026-10-27T09:00:00.000Z",
@@ -60,7 +64,7 @@ class MockDashboardApiService extends DashboardApiService {
             "checkInCount": 60,
             "checkOutCount": 20,
             "peakPeopleCount": 92,
-            "lowestPeopleCount": 44
+            "lowestPeopleCount": 44,
           }),
         ];
   }
@@ -74,7 +78,7 @@ void main() {
         "maxCapacity": 500,
         "occupancyRate": 28.4,
         "status": "NORMAL",
-        "updatedAt": "2026-10-27T10:30:00.000Z"
+        "updatedAt": "2026-10-27T10:30:00.000Z",
       };
 
       final model = OccupancyModel.fromJson(mockData);
@@ -119,7 +123,7 @@ void main() {
         "checkInCount": 35,
         "checkOutCount": 5,
         "peakPeopleCount": 42,
-        "lowestPeopleCount": 12
+        "lowestPeopleCount": 12,
       };
 
       final model = CheckInOutStatisticModel.fromJson(mockStat);
@@ -204,6 +208,29 @@ void main() {
       expect(provider.selectedFilter, DashboardTimeFilter.custom);
       expect(provider.customStartDate, start);
       expect(provider.customEndDate, end);
+    });
+
+    test('today filter sends endDate capped at now, not end of day', () async {
+      final mockService = MockDashboardApiService();
+      final provider = DashboardProvider(apiService: mockService);
+
+      final before = DateTime.now();
+      await provider.init();
+      final after = DateTime.now();
+
+      expect(mockService.lastEndDate, isNotNull);
+      expect(
+        mockService.lastEndDate!.isAfter(
+          before.subtract(const Duration(seconds: 1)),
+        ),
+        isTrue,
+      );
+      expect(
+        mockService.lastEndDate!.isBefore(
+          after.add(const Duration(seconds: 1)),
+        ),
+        isTrue,
+      );
     });
   });
 }

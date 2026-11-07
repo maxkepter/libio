@@ -1,0 +1,54 @@
+name: Build iOS IPA (Unsigned)
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_base_url:
+        description: 'Địa chỉ Backend API (VD: http://kepter.id.vn hoặc https://kepter.id.vn)'
+        required: true
+        default: 'http://kepter.id.vn'
+
+jobs:
+  build-ipa:
+    name: Build Unsigned IPA on macOS
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Tạo file fe/.env với API_BASE_URL
+        working-directory: fe
+        run: |
+          echo "API_BASE_URL=${{ github.event.inputs.api_base_url || 'http://kepter.id.vn' }}" > .env
+          cat .env
+
+      - name: Cài đặt thư viện Flutter & CocoaPods
+        working-directory: fe
+        run: |
+          flutter pub get
+
+      - name: Build iOS Release (No Codesign)
+        working-directory: fe
+        run: |
+          flutter build ios --release --no-codesign
+
+      - name: Đóng gói Runner.app thành file LibIO.ipa
+        working-directory: fe/build/ios/iphoneos
+        run: |
+          mkdir -p Payload
+          cp -r Runner.app Payload/
+          zip -r -9 LibIO.ipa Payload
+
+      - name: Upload file LibIO.ipa để tải về
+        uses: actions/upload-artifact@v4
+        with:
+          name: LibIO-iOS-IPA
+          path: fe/build/ios/iphoneos/LibIO.ipa
+          retention-days: 7

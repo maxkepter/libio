@@ -203,6 +203,10 @@ export class CheckInOutService {
           device.id,
           savedLog.id,
           now,
+          reader.fullName,
+          gate.id,
+          gate.name,
+          AccessMethod.QR,
         ),
       );
 
@@ -346,6 +350,10 @@ export class CheckInOutService {
           device.id,
           savedLog.id,
           now,
+          reader.fullName,
+          gate.id,
+          gate.name,
+          AccessMethod.FACE,
         ),
       );
 
@@ -609,6 +617,10 @@ export class CheckInOutService {
           device.id,
           savedLog.id,
           now,
+          reader.fullName,
+          gate.id,
+          gate.name,
+          AccessMethod.MANUAL,
         ),
       );
 

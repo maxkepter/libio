@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import 'package:fe/core/constants/route_constants.dart';
@@ -26,9 +27,30 @@ class _AdminReportScreenState extends State<AdminReportScreen> {
   bool _initialized = false;
   bool _loading = true;
   String? _errorMsg;
-  int _daysRange = 7;
+  int _daysRange = 1;
+  DateTime? _customDate;
 
   Map<String, dynamic>? _summary;
+
+  Future<void> _pickCustomDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _customDate ?? now,
+      firstDate: DateTime(2024, 1, 1),
+      lastDate: now,
+      helpText: 'Chọn ngày xem báo cáo ra/vào',
+      cancelText: 'Hủy',
+      confirmText: 'Chọn ngày',
+    );
+    if (picked != null) {
+      setState(() {
+        _customDate = picked;
+        _daysRange = 0;
+      });
+      _loadReport();
+    }
+  }
 
   @override
   void didChangeDependencies() {
@@ -47,17 +69,39 @@ class _AdminReportScreenState extends State<AdminReportScreen> {
     });
 
     final now = DateTime.now();
-    final from = DateTime(
-      now.year,
-      now.month,
-      now.day,
-    ).subtract(Duration(days: _daysRange - 1));
-    final to = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    final DateTime from;
+    final DateTime to;
+    if (_customDate != null && _daysRange == 0) {
+      from = DateTime(
+        _customDate!.year,
+        _customDate!.month,
+        _customDate!.day,
+        0,
+        0,
+        0,
+      );
+      to = DateTime(
+        _customDate!.year,
+        _customDate!.month,
+        _customDate!.day,
+        23,
+        59,
+        59,
+        999,
+      );
+    } else {
+      from = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).subtract(Duration(days: _daysRange - 1));
+      to = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
+    }
 
     try {
       final res = await _accessService.getReportSummary(
-        from: from.toIso8601String(),
-        to: to.toIso8601String(),
+        from: from.toUtc().toIso8601String(),
+        to: to.toUtc().toIso8601String(),
       );
       if (!mounted) return;
       setState(() {
@@ -154,10 +198,29 @@ class _AdminReportScreenState extends State<AdminReportScreen> {
                               ),
                               Wrap(
                                 spacing: 8,
+                                runSpacing: 8,
+                                crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   _rangeChip('Hôm nay', 1),
                                   _rangeChip('7 ngày qua', 7),
                                   _rangeChip('30 ngày qua', 30),
+                                  ActionChip(
+                                    avatar: const Icon(
+                                      Icons.calendar_month_rounded,
+                                      size: 16,
+                                      color: AppColors.accent600,
+                                    ),
+                                    backgroundColor:
+                                        _customDate != null && _daysRange == 0
+                                        ? AppColors.accent100
+                                        : AppColors.white,
+                                    label: Text(
+                                      _customDate != null && _daysRange == 0
+                                          ? 'Ngày ${DateFormat('dd/MM/yyyy').format(_customDate!)}'
+                                          : 'Chọn ngày...',
+                                    ),
+                                    onPressed: _pickCustomDate,
+                                  ),
                                 ],
                               ),
                             ],
@@ -183,7 +246,9 @@ class _AdminReportScreenState extends State<AdminReportScreen> {
                                   child: _kpiCard(
                                     title: 'Tổng lượt Check-in',
                                     value: '$totalCheckIns',
-                                    subtitle: 'Trong $_daysRange ngày',
+                                    subtitle: _customDate != null && _daysRange == 0
+                                        ? 'Ngày ${DateFormat('dd/MM/yyyy').format(_customDate!)}'
+                                        : 'Trong $_daysRange ngày',
                                     color: AppColors.success,
                                     icon: Icons.login_rounded,
                                   ),
@@ -351,7 +416,7 @@ class _AdminReportScreenState extends State<AdminReportScreen> {
   }
 
   Widget _rangeChip(String label, int days) {
-    final selected = _daysRange == days;
+    final selected = _daysRange == days && _customDate == null;
     return ChoiceChip(
       label: Text(label),
       selected: selected,
@@ -359,6 +424,7 @@ class _AdminReportScreenState extends State<AdminReportScreen> {
       onSelected: (_) {
         setState(() {
           _daysRange = days;
+          _customDate = null;
         });
         _loadReport();
       },

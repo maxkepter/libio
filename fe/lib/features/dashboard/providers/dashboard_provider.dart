@@ -32,7 +32,7 @@ class DashboardProvider extends ChangeNotifier {
   DateTime? _customEndDate;
 
   DashboardProvider({required DashboardApiService apiService})
-      : _apiService = apiService;
+    : _apiService = apiService;
 
   OccupancyModel? get occupancy => _occupancy;
   List<CheckInOutStatisticModel> get stats => _stats;
@@ -61,10 +61,7 @@ class DashboardProvider extends ChangeNotifier {
       : _stats.map((e) => e.lowestPeopleCount).reduce((a, b) => a < b ? a : b);
 
   Future<void> init() async {
-    await Future.wait([
-      fetchOccupancy(),
-      fetchStatistics(),
-    ]);
+    await Future.wait([fetchOccupancy(), fetchStatistics()]);
   }
 
   Future<void> refresh() async {
@@ -92,31 +89,39 @@ class DashboardProvider extends ChangeNotifier {
     switch (_selectedFilter) {
       case DashboardTimeFilter.today:
         final start = DateTime(now.year, now.month, now.day, 0, 0, 0);
-        final end = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
-        return (start, end, _selectedIntervalMin);
+        return (start, now, _selectedIntervalMin);
 
       case DashboardTimeFilter.last24Hours:
         final start = now.subtract(const Duration(hours: 24));
         return (start, now, _selectedIntervalMin);
 
       case DashboardTimeFilter.last7Days:
-        final start = DateTime(now.year, now.month, now.day)
-            .subtract(const Duration(days: 6));
-        final end = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
-        return (start, end, _selectedIntervalMin);
+        final start = DateTime(
+          now.year,
+          now.month,
+          now.day,
+        ).subtract(const Duration(days: 6));
+        return (start, now, _selectedIntervalMin);
 
       case DashboardTimeFilter.last30Days:
-        final start = DateTime(now.year, now.month, now.day)
-            .subtract(const Duration(days: 29));
-        final end = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
-        return (start, end, _selectedIntervalMin);
+        final start = DateTime(
+          now.year,
+          now.month,
+          now.day,
+        ).subtract(const Duration(days: 29));
+        return (start, now, _selectedIntervalMin);
 
       case DashboardTimeFilter.custom:
-        final start = _customStartDate ??
-            DateTime(now.year, now.month, now.day)
-                .subtract(const Duration(days: 7));
-        final end = _customEndDate ??
-            DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
+        final start =
+            _customStartDate ??
+            DateTime(
+              now.year,
+              now.month,
+              now.day,
+            ).subtract(const Duration(days: 7));
+        final end = _customEndDate != null && _customEndDate!.isBefore(now)
+            ? _customEndDate!
+            : now;
         return (start, end, _selectedIntervalMin);
     }
   }

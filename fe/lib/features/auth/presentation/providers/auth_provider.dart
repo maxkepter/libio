@@ -90,17 +90,21 @@ class AuthProvider extends ChangeNotifier {
       String fingerprint = 'flutter-${defaultTargetPlatform.name}';
       String platform = defaultTargetPlatform.name;
       String? name;
-      final info = DeviceInfoPlugin();
-      if (defaultTargetPlatform == TargetPlatform.android) {
-        final data = await info.androidInfo;
-        fingerprint = data.id;
-        platform = 'android';
-        name = '${data.manufacturer} ${data.model}';
-      } else if (defaultTargetPlatform == TargetPlatform.iOS) {
-        final data = await info.iosInfo;
-        fingerprint = data.identifierForVendor ?? data.name;
-        platform = 'ios';
-        name = data.name;
+      try {
+        final info = DeviceInfoPlugin();
+        if (defaultTargetPlatform == TargetPlatform.android) {
+          final data = await info.androidInfo;
+          fingerprint = data.id;
+          platform = 'android';
+          name = '${data.manufacturer} ${data.model}';
+        } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+          final data = await info.iosInfo;
+          fingerprint = data.identifierForVendor ?? data.name;
+          platform = 'ios';
+          name = data.name;
+        }
+      } catch (_) {
+        // Fallback to default platform fingerprint in test/unsupported environments
       }
       final res = await authService.login(
         LoginReq(email: username.trim(), password: password,
