@@ -105,52 +105,35 @@ class _CheckInOutChartState extends State<CheckInOutChart> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Text(
+            isCandle
+                ? 'Biểu đồ nến biến động số người'
+                : 'Biểu đồ biến động Check-in / Check-out',
+            style: AppTextStyles.h3.copyWith(color: AppColors.charcoal900),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '${widget.stats.length} mốc • Kéo chuột/vuốt ngang để xem thêm',
+            style: AppTextStyles.caption.copyWith(color: AppColors.charcoal500),
+          ),
+          const SizedBox(height: AppSpacing.s3),
+          Wrap(
+            spacing: AppSpacing.s3,
+            runSpacing: AppSpacing.s2,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      isCandle
-                          ? 'Biểu đồ nến biến động số người'
-                          : 'Biểu đồ biến động Check-in / Check-out',
-                      style: AppTextStyles.h3.copyWith(
-                        color: AppColors.charcoal900,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${widget.stats.length} mốc • Kéo chuột/vuốt ngang để xem thêm',
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.charcoal500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              _buildViewModeToggle(),
+              if (!isCandle) ...[
+                _legendItem('Check-in', AppColors.success),
+                _legendItem('Check-out', AppColors.accent500),
+              ] else ...[
+                _legendItem('Tăng', AppColors.success),
+                _legendItem('Giảm', AppColors.danger),
+                _legendItem('Đỉnh/Đáy', AppColors.charcoal500),
+              ],
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // View mode toggle
-                  _buildViewModeToggle(),
-                  const SizedBox(width: AppSpacing.s3),
-                  // Legends
-                  if (!isCandle) ...[
-                    _legendItem('Check-in', AppColors.success),
-                    const SizedBox(width: AppSpacing.s3),
-                    _legendItem('Check-out', AppColors.accent500),
-                  ] else ...[
-                    _legendItem('Tăng', AppColors.success),
-                    const SizedBox(width: AppSpacing.s3),
-                    _legendItem('Giảm', AppColors.danger),
-                    const SizedBox(width: AppSpacing.s3),
-                    _legendItem('Đỉnh/Đáy', AppColors.charcoal500),
-                  ],
-                  const SizedBox(width: AppSpacing.s2),
-                  // Left/Right quick scroll buttons
                   InkWell(
                     onTap: () => _scrollBy(-200),
                     borderRadius: BorderRadius.circular(4),
