@@ -78,8 +78,15 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Create environment file
-        run: cp .env.example .env
+      - name: Write env file from secrets
+        env:
+          FE_ENV: ${{ secrets.FE_ENV || secrets.FLUTTER_ENV }}
+        run: |
+          if [ -n "$FE_ENV" ]; then
+            printf "%s\n" "$FE_ENV" > .env
+          else
+            cp .env.example .env
+          fi
 
       - name: Install dependencies
         run: flutter pub get
